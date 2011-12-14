@@ -6,7 +6,7 @@ function cumsumvals2=selectStates(startingState,prior,...
 %   meansFull,covarsFull,mixmat,obs,stateO,noteNum,sr)
 %
 % Description: 
-%  Refines the HMM parameters according to the modiefed state 
+%  Refines the HMM parameters according to the modified state 
 %  sequence vector (stateO) passed into the function.
 %
 % Inputs:

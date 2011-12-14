@@ -70,7 +70,8 @@ function x = gh(v1, i1, v2, i2, domain, frac)
 %
 % Automatic Music Performance Analysis and Analysis Toolkit (AMPACT) 
 % http://www.ampact.org
-% (c) copyright 2011 Johanna Devaney (j@devaney.ca), all rights reserved.
+% (c) copyright 2011 Johanna Devaney (j@devaney.ca) and Michael Mandel
+%                    (mim@mr-pc.org), all rights reserved.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if ~exist('frac', 'var'), frac = 0.5; end

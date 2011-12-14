@@ -1,13 +1,13 @@
-function pp = perceivedPitch(f0s, sr, gamma)
+function [pp1 pp2]= perceivedPitch(f0s, sr, gamma)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % pp = perceivedPitch(f0s, sr, gamma)
 %
 % Description: Calculate the perceived pitch of a note based on 
-%               Gockel, H., B.J.C. Moore,and R.P. Carlyon. 2001. 
-%               Influence of rate of change of frequency on the overall 
-%               pitch of frequency-modulated Tones. Journal of the 
-%               Acoustical Society of America. 109(2):701?12.
+%              Gockel, H., B.J.C. Moore,and R.P. Carlyon. 2001. 
+%              Influence of rate of change of frequency on the overall 
+%              pitch of frequency-modulated Tones. Journal of the 
+%              Acoustical Society of America. 109(2):701?12.
 %
 % Inputs:
 %  f0s - vector of fundamental frequency estimates
@@ -31,11 +31,18 @@ if ~exist('gamma', 'var'), gamma = 100000; end
 % remove all NaNs in the f0 vector
 f0s(isnan(f0s))=[];
 
-% 
+% create an index into the f0 vector in order to remove outliers by
+% only using the central 80% of the sorted vector
+[d ord] = sort(f0s);
+ind = ord(floor(end*.1):floor(end*.9));
+
+% calculate the rate of change
 deriv = [diff(f0s)*sr -100];
 
-%
+% set weights for the quickly changing vs slowly changing portions 
 weights = exp(-gamma * abs(deriv));
 
-% calculate the perceived pitch as 
-pp = f0s(:)' * weights(:) / sum(weights);
+% calculate two versions of the perceived pitch, one using the entire
+% vector (pp1) and one with the central 80% (pp2)
+pp1 = f0s(:)' * weights(:) / sum(weights);
+pp2 = f0s(ind) * weights(ind)' / sum(weights(ind));
