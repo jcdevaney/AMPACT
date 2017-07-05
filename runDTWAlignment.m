@@ -45,11 +45,11 @@ mid = midorig;
     audiofile,tres,1);
 
 % read midi file and map the times in the midi file to the audio
-nmat = readmidi(mid);
-nmat(:,7) = nmat(:,6) + nmat(:,7);
-nmat(:,1:2) = maptimes(nmat(:,6:7),(dtw.MA-1)*tres,(dtw.RA-1)*tres);
+align.nmat = readmidi(mid);
+align.nmat(:,7) = align.nmat(:,6) + align.nmat(:,7);
+align.nmat(:,1:2) = maptimes(align.nmat(:,6:7),(dtw.MA-1)*tres,(dtw.RA-1)*tres);
 
 % create output alignment 
-align.on = nmat(:,1);
-align.off = nmat(:,2);
-align.midiNote = nmat(:,4);
+align.on = align.nmat(:,1);
+align.off = align.nmat(:,2);
+align.midiNote = align.nmat(:,4);

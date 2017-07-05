@@ -1,0 +1,159 @@
+Example Usage
+- from the included script exampleScript.m 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% exampleScript.m
+%
+% Description: 
+%   Example of how to use the HMM alignment algorithm
+%
+% Automatic Music Performance Analysis and Analysis Toolkit (AMPACT) 
+% http://www.ampact.org
+% (c) copyright 2011 Johanna Devaney (j@devaney.ca), all rights reserved.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+% audio file to be aligned
+audiofile=('example.wav');
+ 
+% MIDI file to be aligned
+midifile=('example.mid');
+ 
+% number of notes to align
+numNotes=6;
+ 
+% vector of order of states (according to lyrics) in stateOrd and 
+% corresponding note numbers in noteNum
+%   1 indicates a rest at the beginning of ending of the note
+%   2 indicates a transient at the beginning or ending of the note
+%   3 indicates a steady state section
+% the following encoding is for six syllables "A-ve Ma-ri-(i)-a"
+%  syllable      A-ve Ma-ri-(i)-a
+%  state type   13 23 23 23  3  31
+%  note number  11 22 33 44  5  66
+stateOrd  = [1 3 2 3 2 3 2 3 3 3 1];
+noteNum =   [1 1 2 2 3 3 4 4 5 6 6];
+ 
+% load singing means and covariances for the HMM alignment
+load SingingMeansCovars.mat
+means=sqrtmeans; 
+covars=sqrtcovars;
+ 
+% specify that the means and covariances in the HMM won't be learned 
+learnparams=0;
+ 
+% run the alignment
+[allstate selectstate,spec,yinres]=runAlignment(audiofile, midifile, numNotes, stateOrd, noteNum, means, covars, learnparams);
+ 
+% visualise the alignment
+alignmentVisualiser(selectstate,midifile,spec,1);
+ 
+% get onset and offset times
+times=getOnsOffs(selectstate);
+ 
+% write the onset and offset times to an audacity-readable file
+dlmwrite('example.txt',[times.ons' times.offs'], 'delimiter', '\t');
+ 
+% you can load 'example.txt' into audacity and correct any errors in the
+% alignment, i.e., the offset error on the last note, and then reload the
+% corrected labels into matlab
+fixedLabels=load('exampleFixed.txt');
+times.ons=fixedLabels(:,1)';
+times.offs=fixedLabels(:,2)';
+ 
+% map timing information to the quantized MIDI file   
+nmatNew=getTimingData(midifile, times);
+writemidi(nmatNew,'examplePerformance.mid')
+ 
+% get cent values for each note
+cents=getCentVals(times,yinres);
+ 
+% calculate intervals size, perceived pitch, vibrato rate, and vibrato depth
+[vibratoDepth, vibratoRate, intervalSize, perceivedPitch]=getPitchVibratoData(cents,yinres.sr); 
+ 
+% get loudness values for each note using the Genesis Loudness Toolbox
+[loudnessEstimates loudnessStructure]=getLoudnessEstimates(audiofile, times);
+ 
+% get DCT values for each note
+for i = 1 : length(cents)
+    
+    % find the peaks and troughs in the F0 trace for each note
+    [mins{i} maxes{i}] = findPeaks(cents{i}, 100, yinres.sr/32, 60);
+    
+    % find the midpoints between mins and maxes in the F0 trace for each
+    % note
+    [x_mids{i} y_mids{i}] = findMids(cents{i}, mins{i}, maxes{i}, 100, yinres.sr/32);
+    
+    % generate a smoothed trajectory of a note by connecting the
+    % midpoints between peaks and troughs.
+    smoothedF0s{i}=smoothNote(cents{i}, x_mids{i}, y_mids{i});
+    
+    % find the steady-state portion of a note
+    steady{i}(1:2)=findSteady(cents{i}, mins{i}, maxes{i}, x_mids{i}, y_mids{i}, 1);
+    
+    % compute the DCT of a signal and approximate it with the first 3 coefficients
+    [dctVals{i}, approx{i}]=noteDct(smoothedF0s{i}(steady{i}(1):steady{i}(2)),3,yinres.sr/32);
+ 
+end
+
+----------------
+
+AMPACT Function Descriptions
+
+runAlignment.m: Calls the DTW alignment function and refines the results with the HMM alignment algorithm, with both a basic and modified state spaces (based on the lyrics). 
+
+getVals.m: Gets values for DTW alignment and YIN analysis of specified audio signal and MIDI file
+
+runDTWAlignment.m: Performs a dynamic time warping alignment between specified audio and MIDI files.
+
+runHMMAlignment.m: Refines DTW alignment values with a three-state HMM, identifying silence,transient, and steady state parts of the signal. The HMM uses the DTW alignment as a prior. 
+
+filltransmat.m: Makes a transition matrix from a seed transition matrix.  
+
+fillpriormat_gauss.m: Creates a prior matrix based on the DTW alignment (supplied by the input variables ons and offs). 
+
+selectStates.m: Refines the HMM parameters according to the modified state  sequence vector passed into the function.
+
+alignmentVisualiser.m: Plots a gross DTW alignment overlaid with the fine alignment resulting from the HMM aligner on the output of YIN.  
+
+getTimingData: Create a note matrix with performance timings.
+
+getCentVals: Get cent values (in relation to A, 440 Hz) for each note.
+
+getPitchVibratoData: Calculate vibrato depth, vibrato rate, perceived pitch, and interval size for the notes in the inputted cell array cents.
+
+getLoudnessEstimates: Get loudness estimate based on Glasberg and Moore (2002) for time-varying sounds using the Loudness Toolbox.
+
+findPeaks: Find peaks and troughs in a signal.
+
+findMids: Find the midpoints between mins and maxes in a signal.
+
+smoothNote: Generate a smoothed trajectory of a note by connecting the midpoints between peaks and troughs.
+
+noteDct: Compute the DCT of a signal and approximate it with a specified number of coefficients.
+
+----------------
+
+AMPACT Dependencies
+
+You will need to have the following toolkits installed and in your path
+  de Cheveigné, A. 2002. YIN MATLAB implementation Available from: http://audition.ens.fr/adc/sw/yin.zip
+  Ellis, D. P. W. 2003. Dynamic Time Warp (DTW) in Matlab. Available from: http://www.ee.columbia.edu/~dpwe/resources/matlab/dtw/ 
+  Ellis, D. P. W. 2008. Aligning MIDI scores to music audio. Available from: http://www.ee.columbia.edu/~dpwe/resources/matlab/alignmidiwav/ 
+  Genesis Acoustics. 2010. Loudness Toolbox for Matlab. Available from http://www.genesis-acoustics.com/index.php?page=32 
+  Murphy, K. 1998. Hidden Markov Model (HMM) Toolbox for Matlab. Available from http://www.cs.ubc.ca/~murphyk/Software/HMM/hmm.html 
+ Toiviainen, P. and T. Eerola. 2006. MIDI Toolbox. Available from:  https://www.jyu.fi/hum/laitokset/musiikki/en/research/coe/materials/miditoolbox/
+
+----------------
+
+Papers on algorithms developed for AMPACT
+
+Devaney, J., M. I. Mandel, and I. Fujinaga. 2011. Characterizing Singing Voice Fundamental Frequency Trajectories. Proceedings of the 2011 Workshop on Applications of Signal Processing to Audio and Acoustics.
+Devaney, J., M. I. Mandel, D. P. W. Ellis, and I. Fujinaga. 2010. Automatically extracting performance data from recordings of trained singers. Psychomusicology: Music, Mind & Brain. 21(1–2): in press.
+Devaney, J. 2011. An empirical study of the influence of musical context on intonation practices in solo singers and SATB ensembles. Ph. D. Dissertation. McGill University.
+Devaney, J., M. I. Mandel, and D. P. W. Ellis. 2009. Improving MIDI-audio alignment with acoutics features. In Proceedings of the 2009 Workshop on Applications of Signal Processing to Audio and Acoustics.
+
+----------------
+
+Papers on algorithms by other authors used by AMPACT
+
+de Cheveigné, A., and H. Kawahara. 2002. YIN, a fundamental frequency estimator for speech and music. Journal of the Acoustical Society of America 111 (4): 1917–30.
+Orio, N., and D. Schwarz. 2001. Alignment of monophonic and polyphonic music to a score. In Proceedings of the International Computer Music Conference, 155–8.
